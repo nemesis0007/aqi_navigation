@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco-Route Navigator</title>
+    <meta name="description" content="AI-Powered AQI Prediction and Eco-Friendly Route Navigation">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Tailwind Config for Custom Colors/Fonts -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#000000',
+                            primary: '#007AFF',
+                            accent: '#34C759',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 top-0 glass-panel border-b-0" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold text-lg tracking-tight">Eco-Route</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-6">
+                        <a href="#home"
+                            class="text-sm font-medium text-gray-300 hover:text-white transition-colors">Home</a>
+                        <a href="#map-section" class="btn-apple px-4 py-1.5 text-sm">Start</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="relative pt-40 pb-20 lg:pt-56 lg:pb-32 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-3xl mx-auto">
+                <div id="current-aqi-display"
+                    class="hidden mb-6 inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="text-sm font-medium text-gray-300">Current AQI near you: <span
+                            class="text-white font-bold" id="local-aqi-value">--</span></span>
+                </div>
+                <h1 class="text-5xl md:text-8xl font-bold mb-6 text-hero tracking-tighter">
+                    Breathe.<br>Better.
+                </h1>
+                <p class="text-xl md:text-2xl text-subtle mb-10 leading-relaxed font-light max-w-2xl mx-auto">
+                    The smartest way to navigate your city. Avoiding pollution, one turn at a time.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="#map-section" class="btn-apple px-8 py-4 text-lg flex items-center justify-center gap-2">
+                        Plan Route
+                    </a>
+                    <a href="#features" class="btn-secondary px-8 py-4 text-lg">
+                        Learn More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section id="features" class="py-24 bg-[#050505]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="glass-card p-8 border border-white/5">
+                    <div
+                        class="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Real-Time Analysis</h3>
+                    <p class="text-gray-500 leading-relaxed">We fetch live air quality data from thousands of sensors to
+                        build a pollution map of your city.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-card p-8 border border-white/5">
+                    <div
+                        class="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center mb-6 text-green-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Health First</h3>
+                    <p class="text-gray-500 leading-relaxed">Our algorithms prioritize your lungs over speed, finding
+                        routes with the lowest AQI exposure.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-card p-8 border border-white/5">
+                    <div
+                        class="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 text-purple-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Smart Routing</h3>
+                    <p class="text-gray-500 leading-relaxed">Seamlessly integrates with Google Maps to provide
+                        turn-by-turn navigation on the cleanest path.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Impact Section -->
+    <section class="py-32 border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                <div>
+                    <h2 class="text-4xl md:text-6xl font-bold mb-8 tracking-tight">Invisible Threat.<br>Visible
+                        Solution.</h2>
+                    <p class="text-xl text-gray-400 mb-6 font-light">
+                        Air pollution is the world's largest environmental health risk. Microscopic PM2.5 particles can
+                        penetrate deep into your lungs and bloodstream.
+                    </p>
+                    <p class="text-xl text-gray-400 font-light">
+                        By choosing a cleaner route, you can reduce your exposure by up to <span
+                            class="text-white font-semibold">40%</span> on a single commute.
+                    </p>
+                </div>
+                <div class="relative">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl rounded-full">
+                    </div>
+                    <div class="glass-panel p-8 rounded-3xl relative border border-white/10">
+                        <div class="flex items-center justify-between mb-8">
+                            <span class="text-sm font-medium text-gray-400">PM2.5 Exposure</span>
+                            <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">Saved</span>
+                        </div>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex justify-between text-sm mb-2">
+                                    <span class="text-gray-500">Standard Route</span>
+                                    <span class="text-red-400">145 µg/m³</span>
+                                </div>
+                                <div class="w-full bg-white/5 rounded-full h-2">
+                                    <div class="bg-red-500/50 h-2 rounded-full" style="width: 85%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-2">
+                                    <span class="text-white font-medium">Eco-Route</span>
+                                    <span class="text-green-400">45 µg/m³</span>
+                                </div>
+                                <div class="w-full bg-white/5 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full" style="width: 35%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Knowledge Hub Section -->
+    <section id="knowledge" class="py-24 bg-[#050505] border-t border-white/5">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl md:text-5xl font-bold mb-8 tracking-tight">Knowledge Hub</h2>
+
+            <!-- Tabs -->
+            <div class="mb-12">
+                <div class="segmented-control">
+                    <div class="tab-btn active" onclick="switchTab('pollutants')">Pollutants</div>
+                    <div class="tab-btn" onclick="switchTab('health')">Health Effects</div>
+                    <div class="tab-btn" onclick="switchTab('protection')">Protection</div>
+                </div>
+            </div>
+
+            <!-- Content Panels -->
+            <div class="text-left">
+                <!-- Pollutants Panel -->
+                <div id="tab-pollutants" class="tab-content active">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-6 border border-white/5">
+                            <h3 class="text-xl font-bold mb-2 text-white">PM2.5</h3>
+                            <p class="text-gray-400 text-sm mb-4">Fine particulate matter less than 2.5 microns in
+                                diameter.</p>
+                            <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Sources</div>
+                            <p class="text-sm text-gray-300">Vehicle exhaust, construction dust, industrial emissions.
+                            </p>
+                        </div>
+                        <div class="glass-card p-6 border border-white/5">
+                            <h3 class="text-xl font-bold mb-2 text-white">NO2</h3>
+                            <p class="text-gray-400 text-sm mb-4">Nitrogen Dioxide, a reddish-brown gas.</p>
+                            <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Sources</div>
+                            <p class="text-sm text-gray-300">Burning of fuel, cars, trucks, buses, power plants.</p>
+                        </div>
+                        <div class="glass-card p-6 border border-white/5">
+                            <h3 class="text-xl font-bold mb-2 text-white">O3</h3>
+                            <p class="text-gray-400 text-sm mb-4">Ground-level Ozone, a main component of smog.</p>
+                            <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Sources</div>
+                            <p class="text-sm text-gray-300">Chemical reactions between oxides of nitrogen (NOx) and
+                                VOCs.</p>
+                        </div>
+                        <div class="glass-card p-6 border border-white/5">
+                            <h3 class="text-xl font-bold mb-2 text-white">CO</h3>
+                            <p class="text-gray-400 text-sm mb-4">Carbon Monoxide, a colorless, odorless gas.</p>
+                            <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Sources</div>
+                            <p class="text-sm text-gray-300">Incomplete combustion of fuel in vehicles and stoves.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Panel -->
+                <div id="tab-health" class="tab-content">
+                    <div class="glass-panel p-8 rounded-3xl border border-white/10">
+                        <div class="space-y-8">
+                            <div class="flex gap-6">
+                                <div
+                                    class="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0 text-yellow-500 font-bold">
+                                    1</div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white mb-2">Immediate Effects</h3>
+                                    <p class="text-gray-400">Irritation of eyes, nose, and throat. Coughing, chest
+                                        tightness, and shortness of breath. Reduced lung function and irregular
+                                        heartbeat.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-6">
+                                <div
+                                    class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-orange-500 font-bold">
+                                    2</div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white mb-2">Long-Term Exposure</h3>
+                                    <p class="text-gray-400">Aggravated asthma and development of chronic respiratory
+                                        diseases like COPD. Increased risk of heart attack and stroke. Potential impact
+                                        on cognitive function.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-6">
+                                <div
+                                    class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 text-red-500 font-bold">
+                                    3</div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white mb-2">Vulnerable Groups</h3>
+                                    <p class="text-gray-400">Children, the elderly, and people with existing heart or
+                                        lung conditions are at significantly higher risk and should take extra
+                                        precautions.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Protection Panel -->
+                <div id="tab-protection" class="tab-content">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-card p-6 border border-white/5 text-center">
+                            <div class="text-4xl mb-4">😷</div>
+                            <h3 class="text-lg font-bold text-white mb-2">Wear a Mask</h3>
+                            <p class="text-gray-400 text-sm">N95 or N99 masks are most effective at filtering out PM2.5
+                                particles. Cloth masks offer limited protection.</p>
+                        </div>
+                        <div class="glass-card p-6 border border-white/5 text-center">
+                            <div class="text-4xl mb-4">🏠</div>
+                            <h3 class="text-lg font-bold text-white mb-2">Stay Indoors</h3>
+                            <p class="text-gray-400 text-sm">When AQI is high, keep windows closed and use an air
+                                purifier with a HEPA filter if possible.</p>
+                        </div>
+                        <div class="glass-card p-6 border border-white/5 text-center">
+                            <div class="text-4xl mb-4">🕒</div>
+                            <h3 class="text-lg font-bold text-white mb-2">Time Your Travel</h3>
+                            <p class="text-gray-400 text-sm">Avoid outdoor activities during peak traffic hours. Use
+                                Eco-Route Navigator to find cleaner paths.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Map Interface Section -->
+    <section id="map-section" class="py-20 relative">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div
+                class="glass-panel rounded-3xl overflow-hidden relative min-h-[80vh] flex flex-col md:flex-row shadow-2xl">
+
+                <!-- Sidebar / Controls -->
+                <div
+                    class="w-full md:w-96 bg-black/40 backdrop-blur-xl p-8 border-r border-white/10 flex flex-col z-10">
+                    <h2 class="text-2xl font-bold mb-8 tracking-tight">Route</h2>
+
+                    <form id="route-form" class="space-y-5">
+                        <div class="space-y-2">
+                            <label
+                                class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">From</label>
+                            <input type="text" id="origin-input" placeholder="Current Location"
+                                class="w-full input-apple px-4 py-3 text-sm">
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">To</label>
+                            <input type="text" id="destination-input" placeholder="Destination"
+                                class="w-full input-apple px-4 py-3 text-sm">
+                        </div>
+
+                        <button type="submit" class="w-full btn-apple py-3 mt-4 text-sm font-semibold">
+                            Find Route
+                        </button>
+                    </form>
+
+                    <!-- Route Stats (Hidden initially) -->
+                    <div id="route-stats" class="mt-10 hidden">
+                        <div class="flex items-baseline justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Analysis</h3>
+                            <span class="text-xs text-gray-500 uppercase tracking-wider">Live Data</span>
+                        </div>
+
+                        <!-- Card 1 -->
+                        <div class="glass-card p-5 mb-4 border border-white/5">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-gray-400 text-sm font-medium">Health Score</span>
+                                <span class="text-white font-bold text-2xl">94</span>
+                            </div>
+                            <div class="w-full bg-white/10 rounded-full h-1.5">
+                                <div class="bg-green-500 h-1.5 rounded-full" style="width: 94%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Details -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="glass-card p-4 text-center border border-white/5">
+                                <div class="text-xl font-bold text-white mb-1">12<span
+                                        class="text-xs text-gray-500 font-normal ml-0.5">km</span></div>
+                                <div class="text-[10px] text-gray-500 uppercase tracking-wider">Distance</div>
+                            </div>
+                            <div class="glass-card p-4 text-center border border-white/5">
+                                <div class="text-xl font-bold text-white mb-1">24<span
+                                        class="text-xs text-gray-500 font-normal ml-0.5">min</span></div>
+                                <div class="text-[10px] text-gray-500 uppercase tracking-wider">Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Container -->
+                <div class="flex-1 relative bg-[#1c1c1e]">
+                    <div id="map" class="w-full h-full" style="filter: grayscale(100%) invert(100%) contrast(90%);">
+                    </div>
+
+                    <!-- Map Overlay / Loading State -->
+                    <div id="map-placeholder"
+                        class="absolute inset-0 flex items-center justify-center bg-[#1c1c1e] z-0">
+                        <div class="text-center">
+                            <p class="text-gray-500 font-medium text-sm">Loading Maps...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 bg-black pt-20 pb-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-600 text-xs"></p>
+            <p class="text-gray-700 text-[10px] mt-2">&copy; 2026 Eco-Route.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <!-- Firebase SDK (Compat for simplicity in vanilla JS) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- Config -->
+    <script src="config.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <!-- Main Logic -->
+    <script src="script.js"></script>
+
+    <!-- Google Maps API (Async Load) -->
+    <script>
+            (function (g) { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })({
+                key: CONFIG.GOOGLE_API_KEY,
+                v: "weekly",
+            });
+    </script>
+</body>
+
+</html>
