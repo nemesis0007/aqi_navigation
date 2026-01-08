@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,6 +17,5 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: frontend # This tells GitHub to only host the 'frontend' folder
-          branch: gh-pages # This is the branch where the site will live
-          
+          folder: frontend
+          branch: gh-pages
