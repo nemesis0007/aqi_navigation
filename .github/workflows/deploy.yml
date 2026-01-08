@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: write  # This gives the action permission to create the gh-pages branch
 
 jobs:
   deploy:
