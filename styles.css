@@ -2,11 +2,8 @@
 :root {
     --glass-border: rgba(255, 255, 255, 0.08);
     --glass-bg: rgba(28, 28, 30, 0.65);
-    /* iOS System Gray 6ish */
     --primary-blue: #007AFF;
-    /* Apple Blue */
     --success-green: #34C759;
-    /* Apple Green */
 }
 
 html {
@@ -17,20 +14,17 @@ html {
 
 body {
     background-color: #000000;
-    /* True Black */
     color: #F5F5F7;
-    /* Apple Off-White */
     font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* Custom Scrollbar - Minimal */
 ::-webkit-scrollbar {
     width: 0px;
-    /* Hide scrollbar for cleaner look, or make very thin */
     background: transparent;
 }
 
-/* Glassmorphism Utilities - Refined */
+/* Glassmorphism Utilities */
 .glass-panel {
     background: var(--glass-bg);
     backdrop-filter: blur(20px) saturate(180%);
@@ -58,7 +52,6 @@ body {
 
 .text-subtle {
     color: #86868b;
-    /* Apple Gray */
 }
 
 /* Button Utilities */
@@ -66,20 +59,17 @@ body {
     background-color: var(--primary-blue);
     color: white;
     border-radius: 9999px;
-    /* Pill */
+    padding: 12px 24px;
     font-weight: 500;
     transition: all 0.2s ease;
     border: none;
+    display: inline-flex;
+    align-items: center;
 }
 
 .btn-apple:hover {
     background-color: #0062cc;
-    /* Darker Blue */
     transform: scale(1.02);
-}
-
-.btn-apple:active {
-    transform: scale(0.98);
 }
 
 .btn-secondary {
@@ -109,86 +99,39 @@ body {
     border-color: var(--primary-blue);
 }
 
-/* Input Autofill Fix */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px #1c1c1e inset !important;
-    -webkit-text-fill-color: white !important;
-    transition: background-color 5000s ease-in-out 0s;
+/* Leaflet Map Dark Mode & Overrides */
+#map {
+    z-index: 1; /* Keep map below navigation and sidebars */
 }
 
-/* Map Overrides */
-.gm-style-iw {
-    color: #000;
+/* Leaflet tiles: avoid heavy filters so map tiles remain visible */
+.leaflet-tile-pane {
+    filter: none;
 }
 
-/* Segmented Control Tabs */
-.segmented-control {
-    background: rgba(118, 118, 128, 0.24);
-    border-radius: 9px;
-    padding: 2px;
-    display: inline-flex;
-    position: relative;
+.leaflet-container {
+    background: #1c1c1e !important;
 }
 
-.tab-btn {
-    padding: 6px 20px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #fff;
-    border-radius: 7px;
-    cursor: pointer;
-    position: relative;
-    z-index: 1;
-    transition: color 0.2s ease;
-}
-
-.tab-btn.active {
-    color: #000;
-    background: #fff;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
-}
-
-/* Tab Content Animation */
-.tab-content {
-    display: none;
-    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.tab-content.active {
-    display: block;
-}
-
-@keyframes fadeSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* =========================================
-   ADDED: SIDE PANEL & OVERLAY STYLES
-   ========================================= */
-
+/* Sidebar & Overlay (Fixed Clickability & Layers) */
 .side-panel {
     position: fixed;
     top: 0;
     right: 0;
-    background: rgba(10, 10, 10, 0.85); /* Darker backdrop */
+    width: 100%;
+    max-width: 450px;
+    height: 100%;
+    background: rgba(10, 10, 10, 0.95); /* Darker for better contrast */
     backdrop-filter: blur(25px) saturate(180%);
     -webkit-backdrop-filter: blur(25px) saturate(180%);
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
     transform: translateX(100%);
     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1000;
+    z-index: 4000 !important; /* Top layer */
+    padding: 2rem;
+    overflow-y: auto;
     box-sizing: border-box;
+    pointer-events: auto; /* Critical fix */
 }
 
 .side-panel.open {
@@ -198,26 +141,74 @@ input:-webkit-autofill:active {
 .overlay-dim {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(4px);
     display: none;
-    z-index: 999;
+    z-index: 3500; /* Below sidebar, above map */
 }
 
 .overlay-dim.active {
     display: block;
 }
 
+/* Station Card Styling within Sidebar */
 .station-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--glass-border);
     border-radius: 18px;
-    transition: all 0.3s ease;
-    cursor: pointer;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    cursor: pointer !important;
+    pointer-events: auto !important; /* Critical fix for clicking */
 }
 
 .station-card:hover {
     border-color: var(--primary-blue);
-    background: rgba(255, 255, 255, 0.07);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
 }
+
+/* Improved station list scrollbar and scroll buttons */
+#map-station-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+#map-station-list::-webkit-scrollbar { width: 8px; }
+#map-station-list::-webkit-scrollbar-track { background: transparent; }
+#map-station-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+
+.station-scroll-btn {
+    background: rgba(255,255,255,0.04);
+    color: #fff;
+    border: 1px solid var(--glass-border);
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+.station-scroll-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* Tabs Styles */
+.segmented-control {
+    background: rgba(118, 118, 128, 0.24);
+    border-radius: 9px;
+    padding: 2px;
+    display: inline-flex;
+}
+
+.tab-btn {
+    padding: 6px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    color: #000;
+    background: #fff;
+}
+
+/* side-tab removed */

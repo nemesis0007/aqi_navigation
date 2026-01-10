@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pune Station Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-black text-white font-sans p-8">
+    <div class="max-w-3xl mx-auto">
+        <a href="index.html" class="inline-block mb-6 text-sm text-gray-400">← Back</a>
+        <h1 id="station-title" class="text-3xl font-bold mb-4">Station</h1>
+        <div id="station-content" class="glass-card p-6">
+            <p class="text-gray-300">Detailed data for the selected station will appear here.</p>
+        </div>
+    </div>
+
+    <script>
+        function getQueryParam(key) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(key);
+        }
+        const station = getQueryParam('station') || 'Unknown Station';
+        document.getElementById('station-title').textContent = station;
+        document.getElementById('station-content').innerHTML = `<p class="text-gray-300">Showing details for <strong>${station}</strong>. This page can be extended to show historical AQI, charts, or links.</p>`;
+    </script>
+</body>
+</html>
