@@ -211,4 +211,25 @@ body {
     background: #fff;
 }
 
+/* Floating Heatmap Toggle */
+.heat-float-btn {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 6500;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    font-weight: 600;
+    backdrop-filter: blur(6px);
+}
+.heat-float-btn.active {
+    background: var(--primary-blue);
+    color: #000;
+    border-color: rgba(0,0,0,0.2);
+}
+
 /* side-tab removed */

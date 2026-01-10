@@ -14,7 +14,6 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <link rel="stylesheet" href="styles.css">
 
     <script>
         tailwind.config = {
@@ -26,6 +25,7 @@
             }
         }
     </script>
+  <link rel="stylesheet" crossorigin href="/assets/index-iqVx6tu0.css">
 </head>
 
 <body class="bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
@@ -139,20 +139,12 @@
                             <button id="filter-all" class="text-xs bg-white/10 px-3 py-2 rounded-full">All</button>
                             <button id="filter-pune" class="text-xs bg-white/10 px-3 py-2 rounded-full">Pune</button>
                             <button id="filter-pcmc" class="text-xs bg-white/10 px-3 py-2 rounded-full">PCMC</button>
-                            <button id="toggle-heat" class="text-xs bg-white/10 px-3 py-2 rounded-full">Heatmap</button>
-
-                            <!-- Refresh controls -->
-                            <button id="refresh-data" class="text-xs bg-white/6 px-3 py-2 rounded-full">Refresh</button>
-                            <button id="toggle-auto-refresh" class="text-xs bg-white/6 px-3 py-2 rounded-full">Auto</button>
-                            <div id="last-refresh" class="text-xs text-gray-400 px-2">Updated: --</div>
-                        </div> 
+                        </div>
                         <div id="map-station-list" class="space-y-3 max-h-64 overflow-y-auto pr-2" tabindex="0" aria-label="Station list"></div>
                     </div>
                 </div>
                 <div class="flex-1 relative bg-[#1c1c1e] z-10">
-                    <div id="map" class="w-full h-full">
-                        <button id="heat-floating-btn" class="heat-float-btn" title="Toggle Heatmap">🔥 Heat</button>
-                    </div>
+                    <div id="map" class="w-full h-full"></div>
                 </div>
             </div>
         </div>
@@ -161,7 +153,6 @@
     <!-- Sidebar removed — stations will appear in the map panel below -->
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-    <script src="script.js"></script> 
+    <script src="script.js"></script>
 </body>
 </html>
