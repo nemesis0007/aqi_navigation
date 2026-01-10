@@ -7,18 +7,14 @@
     <title>Eco-Route Navigator</title>
     <meta name="description" content="AI-Powered AQI Prediction and Eco-Friendly Route Navigation">
 
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Tailwind Config for Custom Colors/Fonts -->
     <script>
         tailwind.config = {
             theme: {
@@ -37,11 +33,38 @@
             }
         }
     </script>
+
+    <style>
+        .side-panel {
+            transform: translateX(100%);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+        .side-panel.open {
+            transform: translateX(0);
+        }
+        .overlay-dim {
+            display: none;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+        }
+        .overlay-dim.active {
+            display: block;
+        }
+        .station-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+        }
+        .station-card:hover {
+            border-color: #007AFF;
+            background: rgba(255,255,255,0.08);
+        }
+    </style>
 </head>
 
 <body class="bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
 
-    <!-- Navigation -->
     <nav class="fixed w-full z-50 top-0 glass-panel border-b-0" id="navbar">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
@@ -59,7 +82,6 @@
         </div>
     </nav>
 
-    <!-- Hero Section -->
     <section id="home" class="relative pt-40 pb-20 lg:pt-56 lg:pb-32 overflow-hidden">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div class="text-center max-w-3xl mx-auto">
@@ -79,7 +101,7 @@
                     <a href="#map-section" class="btn-apple px-8 py-4 text-lg flex items-center justify-center gap-2">
                         Plan Route
                     </a>
-                    <a href="#features" class="btn-secondary px-8 py-4 text-lg">
+                    <a href="javascript:void(0)" id="learn-more-trigger" class="btn-secondary px-8 py-4 text-lg">
                         Learn More
                     </a>
                 </div>
@@ -87,11 +109,9 @@
         </div>
     </section>
 
-    <!-- Features Grid -->
     <section id="features" class="py-24 bg-[#050505]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Feature 1 -->
                 <div class="glass-card p-8 border border-white/5">
                     <div
                         class="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-500">
@@ -106,7 +126,6 @@
                         build a pollution map of your city.</p>
                 </div>
 
-                <!-- Feature 2 -->
                 <div class="glass-card p-8 border border-white/5">
                     <div
                         class="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center mb-6 text-green-500">
@@ -121,7 +140,6 @@
                         routes with the lowest AQI exposure.</p>
                 </div>
 
-                <!-- Feature 3 -->
                 <div class="glass-card p-8 border border-white/5">
                     <div
                         class="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 text-purple-500">
@@ -139,7 +157,6 @@
         </div>
     </section>
 
-    <!-- Impact Section -->
     <section class="py-32 border-t border-white/5">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
@@ -190,12 +207,10 @@
         </div>
     </section>
 
-    <!-- Knowledge Hub Section -->
     <section id="knowledge" class="py-24 bg-[#050505] border-t border-white/5">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 class="text-3xl md:text-5xl font-bold mb-8 tracking-tight">Knowledge Hub</h2>
 
-            <!-- Tabs -->
             <div class="mb-12">
                 <div class="segmented-control">
                     <div class="tab-btn active" onclick="switchTab('pollutants')">Pollutants</div>
@@ -204,9 +219,7 @@
                 </div>
             </div>
 
-            <!-- Content Panels -->
             <div class="text-left">
-                <!-- Pollutants Panel -->
                 <div id="tab-pollutants" class="tab-content active">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card p-6 border border-white/5">
@@ -239,7 +252,6 @@
                     </div>
                 </div>
 
-                <!-- Health Panel -->
                 <div id="tab-health" class="tab-content">
                     <div class="glass-panel p-8 rounded-3xl border border-white/10">
                         <div class="space-y-8">
@@ -280,7 +292,6 @@
                     </div>
                 </div>
 
-                <!-- Protection Panel -->
                 <div id="tab-protection" class="tab-content">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="glass-card p-6 border border-white/5 text-center">
@@ -307,13 +318,11 @@
         </div>
     </section>
 
-    <!-- Map Interface Section -->
     <section id="map-section" class="py-20 relative">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div
                 class="glass-panel rounded-3xl overflow-hidden relative min-h-[80vh] flex flex-col md:flex-row shadow-2xl">
 
-                <!-- Sidebar / Controls -->
                 <div
                     class="w-full md:w-96 bg-black/40 backdrop-blur-xl p-8 border-r border-white/10 flex flex-col z-10">
                     <h2 class="text-2xl font-bold mb-8 tracking-tight">Route</h2>
@@ -337,14 +346,12 @@
                         </button>
                     </form>
 
-                    <!-- Route Stats (Hidden initially) -->
                     <div id="route-stats" class="mt-10 hidden">
                         <div class="flex items-baseline justify-between mb-4">
                             <h3 class="text-lg font-semibold">Analysis</h3>
                             <span class="text-xs text-gray-500 uppercase tracking-wider">Live Data</span>
                         </div>
 
-                        <!-- Card 1 -->
                         <div class="glass-card p-5 mb-4 border border-white/5">
                             <div class="flex justify-between items-center mb-3">
                                 <span class="text-gray-400 text-sm font-medium">Health Score</span>
@@ -355,7 +362,6 @@
                             </div>
                         </div>
 
-                        <!-- Details -->
                         <div class="grid grid-cols-2 gap-4">
                             <div class="glass-card p-4 text-center border border-white/5">
                                 <div class="text-xl font-bold text-white mb-1">12<span
@@ -371,12 +377,10 @@
                     </div>
                 </div>
 
-                <!-- Map Container -->
                 <div class="flex-1 relative bg-[#1c1c1e]">
                     <div id="map" class="w-full h-full" style="filter: grayscale(100%) invert(100%) contrast(90%);">
                     </div>
 
-                    <!-- Map Overlay / Loading State -->
                     <div id="map-placeholder"
                         class="absolute inset-0 flex items-center justify-center bg-[#1c1c1e] z-0">
                         <div class="text-center">
@@ -388,7 +392,6 @@
         </div>
     </section>
 
-    <!-- Footer -->
     <footer class="border-t border-white/5 bg-black pt-20 pb-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <p class="text-gray-600 text-xs"></p>
@@ -396,20 +399,98 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <!-- Firebase SDK (Compat for simplicity in vanilla JS) -->
+    <div id="details-sidebar" class="side-panel fixed top-0 right-0 w-full md:w-[450px] h-full bg-[#0a0a0a] border-l border-white/10 p-8 overflow-y-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold tracking-tight">Pune & PCMC Details</h2>
+            <button id="close-sidebar" class="text-4xl text-gray-500 hover:text-white transition-colors">&times;</button>
+        </div>
+        
+        <div class="flex gap-2 mb-8">
+            <button onclick="filterStations('all')" class="text-xs bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-blue-600 transition-all">All</button>
+            <button onclick="filterStations('pune')" class="text-xs bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-blue-600 transition-all">Pune (13)</button>
+            <button onclick="filterStations('pcmc')" class="text-xs bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-blue-600 transition-all">PCMC (4)</button>
+        </div>
+
+        <div id="station-list-container" class="space-y-4">
+            </div>
+    </div>
+
+    <div id="sidebar-overlay" class="overlay-dim fixed inset-0"></div>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <!-- Config -->
     <script src="config.js"></script>
     <script src="firebase-config.js"></script>
-
-    <!-- Main Logic -->
     <script src="script.js"></script>
 
-    <!-- Google Maps API (Async Load) -->
+    <script>
+        const stations = [
+            // Pune (13)
+            { name: "Shivajinagar", area: "pune", lat: 18.531, lng: 73.844 },
+            { name: "Pashan", area: "pune", lat: 18.541, lng: 73.805 },
+            { name: "Lohegaon", area: "pune", lat: 18.591, lng: 73.919 },
+            { name: "Katraj", area: "pune", lat: 18.452, lng: 73.854 },
+            { name: "Hadapsar", area: "pune", lat: 18.508, lng: 73.926 },
+            { name: "Kothrud", area: "pune", lat: 18.507, lng: 73.807 },
+            { name: "Karve Road", area: "pune", lat: 18.509, lng: 73.833 },
+            { name: "Katraj Dairy", area: "pune", lat: 18.459, lng: 73.856 },
+            { name: "SPPU (Ganeshkhind)", area: "pune", lat: 18.553, lng: 73.824 },
+            { name: "Manjri", area: "pune", lat: 18.525, lng: 73.978 },
+            { name: "Alandi", area: "pune", lat: 18.675, lng: 73.889 },
+            { name: "Yerwada", area: "pune", lat: 18.552, lng: 73.883 },
+            { name: "Dhayari", area: "pune", lat: 18.448, lng: 73.809 },
+            // PCMC (4)
+            { name: "Bhosari", area: "pcmc", lat: 18.621, lng: 73.845 },
+            { name: "Nigdi", area: "pcmc", lat: 18.649, lng: 73.771 },
+            { name: "Park Street, Wakad", area: "pcmc", lat: 18.597, lng: 73.779 },
+            { name: "Thergaon", area: "pcmc", lat: 18.599, lng: 73.784 }
+        ];
+
+        const sidebar = document.getElementById('details-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const trigger = document.getElementById('learn-more-trigger');
+        const closeBtn = document.getElementById('close-sidebar');
+
+        function toggleSidebar(state) {
+            if(state) {
+                sidebar.classList.add('open');
+                overlay.classList.add('active');
+                renderStations('all');
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        }
+
+        function renderStations(filter) {
+            const container = document.getElementById('station-list-container');
+            container.innerHTML = '';
+            
+            stations.filter(s => filter === 'all' || s.area === filter).forEach(s => {
+                const card = document.createElement('div');
+                card.className = "station-card p-6 rounded-2xl";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">${s.area}</span>
+                            <h4 class="text-xl font-semibold text-white mt-1">${s.name}</h4>
+                            <p class="text-gray-500 text-xs mt-1">Lat: ${s.lat} | Lng: ${s.lng}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterStations(area) { renderStations(area); }
+
+        trigger.addEventListener('click', () => toggleSidebar(true));
+        closeBtn.addEventListener('click', () => toggleSidebar(false));
+        overlay.addEventListener('click', () => toggleSidebar(false));
+    </script>
+
     <script>
             (function (g) { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })({
                 key: CONFIG.GOOGLE_API_KEY,
