@@ -25,7 +25,7 @@
             }
         }
     </script>
-  <link rel="stylesheet" crossorigin href="/assets/index-B_gNhtHR.css">
+  <link rel="stylesheet" crossorigin href="/assets/index-SdfzXx_t.css">
 </head>
 
 <body class="bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
@@ -124,10 +124,16 @@
                     <h2 class="text-2xl font-bold mb-6 tracking-tight">Route Planner</h2>
                     <div class="space-y-4">
                         <label class="text-sm text-gray-400">Start</label>
-                        <input id="start-input" type="text" placeholder="Start location or address" class="w-full input-apple px-4 py-3 text-sm" />
+                        <div class="relative">
+                            <input id="start-input" type="text" placeholder="Address or lat, lon (e.g. 12.9716, 77.5946)" class="w-full input-apple px-4 py-3 text-sm pr-10" />
+                            <button id="start-clear" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-white/6 px-2 py-1 rounded-full">×</button>
+                        </div>
 
                         <label class="text-sm text-gray-400">Destination</label>
-                        <input id="end-input" type="text" placeholder="Destination location or address" class="w-full input-apple px-4 py-3 text-sm" />
+                        <div class="relative">
+                            <input id="end-input" type="text" placeholder="Address or lat, lon (e.g. 19.0760, 72.8777)" class="w-full input-apple px-4 py-3 text-sm pr-10" />
+                            <button id="end-clear" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-white/6 px-2 py-1 rounded-full">×</button>
+                        </div>
 
                         <div class="flex items-center gap-3">
                             <label class="text-sm text-gray-400">Preference</label>
@@ -137,8 +143,8 @@
                             </div>
                         </div>
 
-                        <div class="flex gap-2">
-                            <button id="find-routes" class="btn-apple px-4 py-2">Find Routes</button>
+                        <div class="flex gap-2 items-center">
+                            <button id="find-routes" class="btn-apple px-4 py-2">Find Routes <span id="find-spinner" style="display:none;margin-left:8px">⏳</span></button>
                             <button id="geolocate-btn" class="text-xs bg-white/6 px-3 py-2 rounded-full">Use my location</button>
                         </div>
                     </div>
@@ -149,9 +155,7 @@
                     </div>
                 </div>
                 <div class="flex-1 relative bg-[#1c1c1e] z-10">
-                    <div id="map" class="w-full h-full">
-                        <button id="heat-floating-btn" class="heat-float-btn" title="Toggle Heatmap">🔥 Heat</button>
-                    </div>
+                    <div id="map" class="w-full h-full"></div>
                 </div>
             </div>
         </div>

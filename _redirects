@@ -1,2 +1,1 @@
-/api/*    https://aqi-backend.onrender.com/:splat   200
-/*      /index.html   200
+/api/*  https://aqi-navigation.onrender.com/api/:splat  200
