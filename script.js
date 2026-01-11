@@ -51,74 +51,87 @@ function decodePolyline(encoded) {
     while (index < encoded.length) {
         lat += shiftAnd();
         lng += shiftAnd();
-        coordinates.push([lat / 1e5, lng / 1e5]);
-    }
-    return coordinates;
-}
+            // Compute grid resolution based on zoom; require zoom >= 6 for usable heatmap
+            const zoom = map.getZoom() || 5;
+            if (zoom < 6) {
+                // Avoid huge, meaningless grids over whole India — ask user to zoom in
+                if (btn) btn.textContent = 'Zoom in to view heatmap';
+                setTimeout(() => { if (btn) btn.textContent = '🔥 Heat'; }, 1200);
+                return;
+            }
 
-// Haversine distance (meters)
-function haversineDistance(a, b) {
-    const toRad = v => v * Math.PI / 180;
-    const R = 6371000;
-    const dLat = toRad(b[0] - a[0]);
-    const dLon = toRad(b[1] - a[1]);
-    const lat1 = toRad(a[0]);
-    const lat2 = toRad(b[0]);
-    const sinDlat = Math.sin(dLat/2), sinDlon = Math.sin(dLon/2);
-    const aVal = sinDlat*sinDlat + Math.cos(lat1)*Math.cos(lat2)*sinDlon*sinDlon;
-    const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1-aVal));
-    return R * c;
-}
+            const latSpan = Math.abs(ne.lat - sw.lat);
+            const lonSpan = Math.abs(ne.lng - sw.lng);
+            // target samples scale with zoom (higher zoom -> more samples)
+            const base = Math.max(36, Math.min(144, 16 * (zoom - 4))); // approximate target
+            const aspect = (lonSpan / (latSpan || 1));
+            const cols = Math.max(3, Math.round(Math.sqrt(base * aspect)));
+            const rows = Math.max(3, Math.round(base / cols));
 
-// Sample points along polyline: pick every Nth point to limit API calls
-function samplePoints(points, step = 8) {
-    const sampled = [];
-    for (let i = 0; i < points.length; i += step) sampled.push(points[i]);
-    if (sampled.length === 0 && points.length) sampled.push(points[0]);
-    // Ensure last point is included (compare values, not references)
-    if (points.length) {
-        const lastSample = sampled[sampled.length-1];
-        const lastPoint = points[points.length-1];
-        const lastSampleStr = lastSample ? `${lastSample[0]},${lastSample[1]}` : null;
-        const lastPointStr = `${lastPoint[0]},${lastPoint[1]}`;
-        if (lastSampleStr !== lastPointStr) sampled.push(lastPoint);
-    }
-    return sampled;
-}
+            const lats = [];
+            const lons = [];
+            for (let r = 0; r < rows; r++) lats.push(sw.lat + (r / (rows - 1 || 1)) * latSpan);
+            for (let c = 0; c < cols; c++) lons.push(sw.lng + (c / (cols - 1 || 1)) * lonSpan);
 
-// Fetch pollution at a point using Open-Meteo Air Quality API
-async function fetchPollution(lat, lon) {
-    const url = `${OPEN_METEO_AQ_URL}?latitude=${lat}&longitude=${lon}&hourly=pm2_5,nitrogen_dioxide&timezone=UTC`;
-    try {
-        const resp = await fetch(url);
-        if (!resp.ok) return null;
-        const json = await resp.json();
-        // take first available hourly value
-        const pm = json && json.hourly && json.hourly.pm2_5 && json.hourly.pm2_5.length ? json.hourly.pm2_5[0] : null;
-        const no2 = json && json.hourly && json.hourly.nitrogen_dioxide && json.hourly.nitrogen_dioxide.length ? json.hourly.nitrogen_dioxide[0] : null;
-        return { pm2_5: pm, no2 };
-    } catch (e) { return null; }
-}
+            // Gather sample points and fetch PM values in limited concurrency
+            const samples = [];
+            for (const lat of lats) for (const lon of lons) samples.push([lat, lon]);
+            const pmGrid = new Array(samples.length).fill(null);
+            const chunkSize = 12;
+            for (let i = 0; i < samples.length; i += chunkSize) {
+                const chunk = samples.slice(i, i + chunkSize);
+                const res = await Promise.all(chunk.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
+                for (let j = 0; j < chunk.length; j++) {
+                    const idx = i + j;
+                    const r = res[j] || {};
+                    pmGrid[idx] = (typeof r.pm2_5 === 'number') ? r.pm2_5 : null;
+                }
+            }
 
-// Build an AQI heatmap for the current map view using sampled grid points.
-// This is intentionally simple: we sample a grid inside map bounds (limit
-// total points for API friendliness), fetch PM2.5 for each sample, and
-// convert PM2.5 -> heat intensity. For hackathon speed we cap points.
-async function buildHeatmap() {
-    if (!map) return;
-    const btn = document.getElementById('heat-floating-btn');
-    try {
-        if (btn) { btn.classList.add('loading'); btn.textContent = 'Loading…'; }
-        const bounds = map.getBounds();
-        const sw = bounds.getSouthWest();
-        const ne = bounds.getNorthEast();
+            // Iterative neighbor-fill (up to 3 passes) to reduce isolated nulls
+            const filled = pmGrid.slice();
+            const idxOf = (r, c) => r * cols + c;
+            for (let pass = 0; pass < 3; pass++) {
+                let changed = false;
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const idx = idxOf(r, c);
+                        if (filled[idx] == null) {
+                            let sum = 0, cnt = 0;
+                            for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+                                if (dr === 0 && dc === 0) continue;
+                                const rr = r + dr, cc = c + dc;
+                                if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
+                                const n = filled[idxOf(rr, cc)];
+                                if (n != null) { sum += n; cnt++; }
+                            }
+                            if (cnt > 0) { filled[idx] = sum / cnt; changed = true; }
+                        }
+                    }
+                }
+                if (!changed) break;
+            }
 
-        // Decide grid resolution based on area size; cap total samples to 100.
-        const latSpan = Math.abs(ne.lat - sw.lat);
-        const lonSpan = Math.abs(ne.lng - sw.lng);
-        const approxArea = latSpan * lonSpan;
-        // target points: between 25 and 100 based on map zoom/area
-        let target = 64;
+            // Create heat points with sqrt scaling for better contrast
+            const points = [];
+            for (let i = 0; i < samples.length; i++) {
+                const p = samples[i];
+                const pm = filled[i];
+                // sqrt scaling: smoother visual contrast; clamp at 150µg/m³
+                const intensity = (typeof pm === 'number') ? Math.min(1, Math.sqrt(pm / 150)) : 0.02;
+                points.push([p[0], p[1], intensity]);
+            }
+
+            // remove existing heat layer
+            if (heatLayer) try { map.removeLayer(heatLayer); } catch(e){}
+            // radius scales with zoom for consistent appearance
+            const radius = Math.max(8, Math.round(40 - zoom * 3));
+            heatLayer = L.heatLayer(points, {
+                radius,
+                blur: Math.round(radius * 0.7),
+                max: 1,
+                gradient: {0.0: 'blue', 0.25: 'cyan', 0.5: 'lime', 0.75: 'orange', 1.0: 'red'}
+            }).addTo(map);
         if (map.getZoom() >= 10) target = 96;
         if (map.getZoom() <= 6) target = 36;
 
