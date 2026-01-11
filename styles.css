@@ -233,3 +233,33 @@ body {
 }
 
 /* side-tab removed */
+
+/* Autocomplete dropdown for geocode inputs */
+.autocomplete-list {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 8px);
+    width: 100%;
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(10,10,10,0.96);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 6000; /* above map but below global nav */
+    padding: 6px 6px;
+    box-sizing: border-box;
+}
+.autocomplete-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #e6e6e9;
+    font-size: 13px;
+    cursor: pointer;
+}
+.autocomplete-item + .autocomplete-item { margin-top: 6px; }
+.autocomplete-item.loading,
+.autocomplete-item.empty,
+.autocomplete-item.error { color: #9aa0a6; font-style: italic; }
+.autocomplete-item.active,
+.autocomplete-item:hover { background: rgba(255,255,255,0.04); }
