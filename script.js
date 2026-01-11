@@ -6,6 +6,12 @@ let selectedRouteId = null;
 const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
 const OPEN_METEO_AQ_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 
+// Toggle to use the optional backend batch endpoint (false by default).
+// If you set this to true, the frontend will POST sampled points to
+// `/api/exposure` to reduce parallel client-side requests. For hackathon
+// simplicity this is off; the frontend uses Open-Meteo directly.
+const USE_BACKEND = false;
+
 function initMap() {
     // Default view: India (not Pune-centric)
     map = L.map('map', { zoomControl: true }).setView([22.0, 78.0], 5);
@@ -90,8 +96,25 @@ async function fetchPollution(lat, lon) {
 async function computeRouteExposure(route) {
     const coords = decodePolyline(route.geometry);
     const sampled = samplePoints(coords, 8);
-    // fetch pollution for sampled points (limit concurrency)
-    const polls = await Promise.all(sampled.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
+    // fetch pollution for sampled points (limit concurrency). We either
+    // call the backend batch endpoint or fetch per-point directly from
+    // Open-Meteo depending on configuration.
+    let polls = [];
+    if (USE_BACKEND) {
+        try {
+            const points = sampled.map(p => ({ lat: p[0], lon: p[1] }));
+            const resp = await fetch('/api/exposure', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ points })
+            });
+            const json = await resp.json();
+            polls = (json.points || []).map(p => ({ pm2_5: p.pm2_5, no2: p.no2 }));
+        } catch (e) {
+            polls = await Promise.all(sampled.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
+        }
+    } else {
+        polls = await Promise.all(sampled.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
+    }
     // associate pollutants to segments between sampled points
     let exposureSum = 0;
     let distanceSum = 0;
