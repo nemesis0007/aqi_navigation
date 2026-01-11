@@ -2,6 +2,7 @@
 let map;
 let routeLayers = [];
 let selectedRouteId = null;
+let heatLayer = null;
 
 const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
 const OPEN_METEO_AQ_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
@@ -97,6 +98,80 @@ async function fetchPollution(lat, lon) {
         const no2 = json && json.hourly && json.hourly.nitrogen_dioxide && json.hourly.nitrogen_dioxide.length ? json.hourly.nitrogen_dioxide[0] : null;
         return { pm2_5: pm, no2 };
     } catch (e) { return null; }
+}
+
+// Build an AQI heatmap for the current map view using sampled grid points.
+// This is intentionally simple: we sample a grid inside map bounds (limit
+// total points for API friendliness), fetch PM2.5 for each sample, and
+// convert PM2.5 -> heat intensity. For hackathon speed we cap points.
+async function buildHeatmap() {
+    if (!map) return;
+    const btn = document.getElementById('heat-floating-btn');
+    try {
+        if (btn) { btn.classList.add('loading'); btn.textContent = 'Loading…'; }
+        const bounds = map.getBounds();
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+
+        // Decide grid resolution based on area size; cap total samples to 100.
+        const latSpan = Math.abs(ne.lat - sw.lat);
+        const lonSpan = Math.abs(ne.lng - sw.lng);
+        const approxArea = latSpan * lonSpan;
+        // target points: between 25 and 100 based on map zoom/area
+        let target = 64;
+        if (map.getZoom() >= 10) target = 96;
+        if (map.getZoom() <= 6) target = 36;
+
+        // compute grid rows/cols
+        const cols = Math.max(3, Math.round(Math.sqrt(target * (lonSpan / (latSpan || 1)))));
+        const rows = Math.max(3, Math.round(target / cols));
+
+        const lats = [];
+        const lons = [];
+        for (let r = 0; r < rows; r++) lats.push(sw.lat + (r / (rows - 1 || 1)) * latSpan);
+        for (let c = 0; c < cols; c++) lons.push(sw.lng + (c / (cols - 1 || 1)) * lonSpan);
+
+        const points = [];
+        const samples = [];
+        for (const lat of lats) for (const lon of lons) samples.push([lat, lon]);
+
+        // limit concurrency by chunking
+        const chunkSize = 12;
+        for (let i = 0; i < samples.length; i += chunkSize) {
+            const chunk = samples.slice(i, i + chunkSize);
+            const res = await Promise.all(chunk.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
+            for (let j = 0; j < chunk.length; j++) {
+                const p = chunk[j];
+                const r = res[j] || {};
+                const pm = r.pm2_5;
+                // convert pm2.5 to intensity (0..1) using a simple clamp; 150 µg/m³ -> 1.0
+                const intensity = (typeof pm === 'number') ? Math.min(1, pm / 150) : 0;
+                points.push([p[0], p[1], intensity]);
+            }
+        }
+
+        // remove existing heat layer
+        if (heatLayer) try { map.removeLayer(heatLayer); } catch(e){}
+        // create heat layer (radius tuned for map scale)
+        heatLayer = L.heatLayer(points.filter(pt => pt[2] > 0), { radius: 25, blur: 18, maxZoom: 12 }).addTo(map);
+        if (btn) { btn.classList.add('active'); btn.textContent = '🔥 Heat'; }
+    } catch (e) {
+        console.error('Heatmap error', e);
+        if (btn) { btn.textContent = 'Heat (error)'; }
+    } finally {
+        if (btn) setTimeout(() => { btn.classList.remove('loading'); if (btn.textContent.indexOf('Loading')===0) btn.textContent = '🔥 Heat'; }, 400);
+    }
+}
+
+function toggleHeatmap() {
+    const btn = document.getElementById('heat-floating-btn');
+    if (heatLayer && map && map.hasLayer(heatLayer)) {
+        map.removeLayer(heatLayer);
+        if (btn) btn.classList.remove('active');
+        return;
+    }
+    // build heatmap and show
+    buildHeatmap();
 }
 
 // Compute exposure score for a route: weighted (pm2.5 + 0.1*no2) * distance
@@ -302,6 +377,9 @@ function initPanelLogic() {
 window.onload = () => {
     initMap();
     initPanelLogic();
+    // heat map toggle wiring
+    const heatBtn = document.getElementById('heat-floating-btn');
+    if (heatBtn) heatBtn.onclick = toggleHeatmap;
 };
 
 // --- Autocomplete with inline typeahead ---
