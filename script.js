@@ -74,7 +74,14 @@ function samplePoints(points, step = 8) {
     const sampled = [];
     for (let i = 0; i < points.length; i += step) sampled.push(points[i]);
     if (sampled.length === 0 && points.length) sampled.push(points[0]);
-    if (points.length && sampled[sampled.length-1] !== points[points.length-1]) sampled.push(points[points.length-1]);
+    // Ensure last point is included (compare values, not references)
+    if (points.length) {
+        const lastSample = sampled[sampled.length-1];
+        const lastPoint = points[points.length-1];
+        const lastSampleStr = lastSample ? `${lastSample[0]},${lastSample[1]}` : null;
+        const lastPointStr = `${lastPoint[0]},${lastPoint[1]}`;
+        if (lastSampleStr !== lastPointStr) sampled.push(lastPoint);
+    }
     return sampled;
 }
 
@@ -210,6 +217,9 @@ function initPanelLogic() {
     const findBtn = document.getElementById('find-routes');
     const startInput = document.getElementById('start-input');
     const endInput = document.getElementById('end-input');
+    const startClear = document.getElementById('start-clear');
+    const endClear = document.getElementById('end-clear');
+    const spinner = document.getElementById('find-spinner');
     const geoBtn = document.getElementById('geolocate-btn');
     const prefFast = document.getElementById('pref-fastest');
     const prefHealth = document.getElementById('pref-healthiest');
@@ -217,15 +227,22 @@ function initPanelLogic() {
     prefFast.onclick = () => { prefFast.classList.add('active'); prefHealth.classList.remove('active'); };
     prefHealth.onclick = () => { prefHealth.classList.add('active'); prefFast.classList.remove('active'); };
 
+    // Clear buttons
+    if (startClear) startClear.onclick = () => { startInput.value = ''; delete startInput.dataset.lat; delete startInput.dataset.lon; };
+    if (endClear) endClear.onclick = () => { endInput.value = ''; delete endInput.dataset.lat; delete endInput.dataset.lon; };
+
     geoBtn.onclick = async () => {
         if (!navigator.geolocation) return alert('Geolocation not available');
         navigator.geolocation.getCurrentPosition((pos) => {
             startInput.value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+            startInput.dataset.lat = pos.coords.latitude.toFixed(6);
+            startInput.dataset.lon = pos.coords.longitude.toFixed(6);
         }, (err) => alert('Geolocation failed'));
     };
 
     findBtn.onclick = async () => {
         findBtn.disabled = true;
+        if (spinner) spinner.style.display = 'inline-block';
         try {
             const startVal = startInput.value.trim();
             const endVal = endInput.value.trim();
@@ -267,6 +284,19 @@ function initPanelLogic() {
             alert('Route planning failed: ' + (e.message || e));
         } finally { findBtn.disabled = false; }
     };
+
+    // hide spinner when find finishes (also ensure spinner hidden on errors)
+    document.addEventListener('click', () => { if (spinner) spinner.style.display = 'none'; });
+
+    // Pressing Enter in either input triggers the find button
+    [startInput, endInput].forEach(inp => {
+        inp.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                findBtn.click();
+            }
+        });
+    });
 }
 
 window.onload = () => {
