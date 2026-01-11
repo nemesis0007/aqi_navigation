@@ -131,29 +131,55 @@ async function buildHeatmap() {
         for (let r = 0; r < rows; r++) lats.push(sw.lat + (r / (rows - 1 || 1)) * latSpan);
         for (let c = 0; c < cols; c++) lons.push(sw.lng + (c / (cols - 1 || 1)) * lonSpan);
 
-        const points = [];
+        // Build samples array (row-major: rows x cols)
         const samples = [];
         for (const lat of lats) for (const lon of lons) samples.push([lat, lon]);
 
-        // limit concurrency by chunking
+        // fetch in chunks to limit concurrency
         const chunkSize = 12;
+        const pmGrid = new Array(samples.length).fill(null);
         for (let i = 0; i < samples.length; i += chunkSize) {
             const chunk = samples.slice(i, i + chunkSize);
             const res = await Promise.all(chunk.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
             for (let j = 0; j < chunk.length; j++) {
-                const p = chunk[j];
+                const idx = i + j;
                 const r = res[j] || {};
-                const pm = r.pm2_5;
-                // convert pm2.5 to intensity (0..1) using a simple clamp; 150 µg/m³ -> 1.0
-                const intensity = (typeof pm === 'number') ? Math.min(1, pm / 150) : 0;
-                points.push([p[0], p[1], intensity]);
+                pmGrid[idx] = (typeof r.pm2_5 === 'number') ? r.pm2_5 : null;
             }
+        }
+
+        // Fill missing PM values by averaging available neighbors (one-pass)
+        const filled = pmGrid.slice();
+        const idxOf = (r, c) => r * cols + c;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const idx = idxOf(r, c);
+                if (filled[idx] == null) {
+                    let sum = 0, cnt = 0;
+                    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const rr = r + dr, cc = c + dc;
+                        if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
+                        const n = filled[idxOf(rr, cc)];
+                        if (n != null) { sum += n; cnt++; }
+                    }
+                    if (cnt > 0) filled[idx] = sum / cnt;
+                }
+            }
+        }
+
+        const points = [];
+        for (let i = 0; i < samples.length; i++) {
+            const p = samples[i];
+            const pm = filled[i];
+            const intensity = (typeof pm === 'number') ? Math.min(1, pm / 150) : 0.01; // small fallback so point renders
+            points.push([p[0], p[1], intensity]);
         }
 
         // remove existing heat layer
         if (heatLayer) try { map.removeLayer(heatLayer); } catch(e){}
-        // create heat layer (radius tuned for map scale)
-        heatLayer = L.heatLayer(points.filter(pt => pt[2] > 0), { radius: 25, blur: 18, maxZoom: 12 }).addTo(map);
+        // create heat layer (include small intensities so grid is visible)
+        heatLayer = L.heatLayer(points, { radius: 25, blur: 18, maxZoom: 12 }).addTo(map);
         if (btn) { btn.classList.add('active'); btn.textContent = '🔥 Heat'; }
     } catch (e) {
         console.error('Heatmap error', e);
