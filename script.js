@@ -3,308 +3,399 @@ let map;
 let routeLayers = [];
 let selectedRouteId = null;
 let heatLayer = null;
+// When deployed with a backend (Render/Cloud Run), enable batching/caching.
+// Set to `true` for production deployments that provide `/api/exposure`.
+const USE_BACKEND = true;
 
-const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
-const OPEN_METEO_AQ_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
-
-// Toggle to use the optional backend batch endpoint (false by default).
-// If you set this to true, the frontend will POST sampled points to
-// `/api/exposure` to reduce parallel client-side requests. For hackathon
-// simplicity this is off; the frontend uses Open-Meteo directly.
-const USE_BACKEND = false;
-
+// Minimal map initialization and safe stubs to avoid runtime errors
 function initMap() {
-    // Default view: India (not Pune-centric)
-    map = L.map('map', { zoomControl: true }).setView([22.0, 78.0], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-}
-
-// Simple Nominatim geocode
-async function geocode(q) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
-    const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return data.map(d => ({ lat: parseFloat(d.lat), lon: parseFloat(d.lon), display_name: d.display_name }));
-}
-
-// OSRM routing with alternatives
-async function fetchRoutes(from, to) {
-    const coords = `${from.lon},${from.lat};${to.lon},${to.lat}`;
-    const url = `${OSRM_URL}/${coords}?alternatives=true&overview=full&geometries=polyline&steps=false&annotations=distance,duration`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('Routing failed');
-    const json = await resp.json();
-    return json.routes || [];
-}
-
-// Polyline decode (Google encoded polyline)
-function decodePolyline(encoded) {
-    let index = 0, lat = 0, lng = 0, coordinates = [];
-    const shiftAnd = () => {
-        let result = 0, shift = 0, b;
-        do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-        return ((result & 1) ? ~(result >> 1) : (result >> 1));
-    };
-    while (index < encoded.length) {
-        lat += shiftAnd();
-        lng += shiftAnd();
-            // Compute grid resolution based on zoom; require zoom >= 6 for usable heatmap
-            const zoom = map.getZoom() || 5;
-            if (zoom < 6) {
-                // Avoid huge, meaningless grids over whole India — ask user to zoom in
-                if (btn) btn.textContent = 'Zoom in to view heatmap';
-                setTimeout(() => { if (btn) btn.textContent = '🔥 Heat'; }, 1200);
-                return;
-            }
-
-            const latSpan = Math.abs(ne.lat - sw.lat);
-            const lonSpan = Math.abs(ne.lng - sw.lng);
-            // target samples scale with zoom (higher zoom -> more samples)
-            const base = Math.max(36, Math.min(144, 16 * (zoom - 4))); // approximate target
-            const aspect = (lonSpan / (latSpan || 1));
-            const cols = Math.max(3, Math.round(Math.sqrt(base * aspect)));
-            const rows = Math.max(3, Math.round(base / cols));
-
-            const lats = [];
-            const lons = [];
-            for (let r = 0; r < rows; r++) lats.push(sw.lat + (r / (rows - 1 || 1)) * latSpan);
-            for (let c = 0; c < cols; c++) lons.push(sw.lng + (c / (cols - 1 || 1)) * lonSpan);
-
-            // Gather sample points and fetch PM values in limited concurrency
-            const samples = [];
-            for (const lat of lats) for (const lon of lons) samples.push([lat, lon]);
-            const pmGrid = new Array(samples.length).fill(null);
-            const chunkSize = 12;
-            for (let i = 0; i < samples.length; i += chunkSize) {
-                const chunk = samples.slice(i, i + chunkSize);
-                const res = await Promise.all(chunk.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
-                for (let j = 0; j < chunk.length; j++) {
-                    const idx = i + j;
-                    const r = res[j] || {};
-                    pmGrid[idx] = (typeof r.pm2_5 === 'number') ? r.pm2_5 : null;
-                }
-            }
-
-            // Iterative neighbor-fill (up to 3 passes) to reduce isolated nulls
-            const filled = pmGrid.slice();
-            const idxOf = (r, c) => r * cols + c;
-            for (let pass = 0; pass < 3; pass++) {
-                let changed = false;
-                for (let r = 0; r < rows; r++) {
-                    for (let c = 0; c < cols; c++) {
-                        const idx = idxOf(r, c);
-                        if (filled[idx] == null) {
-                            let sum = 0, cnt = 0;
-                            for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-                                if (dr === 0 && dc === 0) continue;
-                                const rr = r + dr, cc = c + dc;
-                                if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
-                                const n = filled[idxOf(rr, cc)];
-                                if (n != null) { sum += n; cnt++; }
-                            }
-                            if (cnt > 0) { filled[idx] = sum / cnt; changed = true; }
-                        }
-                    }
-                }
-                if (!changed) break;
-            }
-
-            // Create heat points with sqrt scaling for better contrast
-            const points = [];
-            for (let i = 0; i < samples.length; i++) {
-                const p = samples[i];
-                const pm = filled[i];
-                // sqrt scaling: smoother visual contrast; clamp at 150µg/m³
-                const intensity = (typeof pm === 'number') ? Math.min(1, Math.sqrt(pm / 150)) : 0.02;
-                points.push([p[0], p[1], intensity]);
-            }
-
-            // remove existing heat layer
-            if (heatLayer) try { map.removeLayer(heatLayer); } catch(e){}
-            // radius scales with zoom for consistent appearance
-            const radius = Math.max(8, Math.round(40 - zoom * 3));
-            heatLayer = L.heatLayer(points, {
-                radius,
-                blur: Math.round(radius * 0.7),
-                max: 1,
-                gradient: {0.0: 'blue', 0.25: 'cyan', 0.5: 'lime', 0.75: 'orange', 1.0: 'red'}
-            }).addTo(map);
-        if (map.getZoom() >= 10) target = 96;
-        if (map.getZoom() <= 6) target = 36;
-
-        // compute grid rows/cols
-        const cols = Math.max(3, Math.round(Math.sqrt(target * (lonSpan / (latSpan || 1)))));
-        const rows = Math.max(3, Math.round(target / cols));
-
-        const lats = [];
-        const lons = [];
-        for (let r = 0; r < rows; r++) lats.push(sw.lat + (r / (rows - 1 || 1)) * latSpan);
-        for (let c = 0; c < cols; c++) lons.push(sw.lng + (c / (cols - 1 || 1)) * lonSpan);
-
-        // Build samples array (row-major: rows x cols)
-        const samples = [];
-        for (const lat of lats) for (const lon of lons) samples.push([lat, lon]);
-
-        // fetch in chunks to limit concurrency
-        const chunkSize = 12;
-        const pmGrid = new Array(samples.length).fill(null);
-        for (let i = 0; i < samples.length; i += chunkSize) {
-            const chunk = samples.slice(i, i + chunkSize);
-            const res = await Promise.all(chunk.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
-            for (let j = 0; j < chunk.length; j++) {
-                const idx = i + j;
-                const r = res[j] || {};
-                pmGrid[idx] = (typeof r.pm2_5 === 'number') ? r.pm2_5 : null;
-            }
-        }
-
-        // Fill missing PM values by averaging available neighbors (one-pass)
-        const filled = pmGrid.slice();
-        const idxOf = (r, c) => r * cols + c;
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const idx = idxOf(r, c);
-                if (filled[idx] == null) {
-                    let sum = 0, cnt = 0;
-                    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-                        if (dr === 0 && dc === 0) continue;
-                        const rr = r + dr, cc = c + dc;
-                        if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
-                        const n = filled[idxOf(rr, cc)];
-                        if (n != null) { sum += n; cnt++; }
-                    }
-                    if (cnt > 0) filled[idx] = sum / cnt;
-                }
-            }
-        }
-
-        const points = [];
-        for (let i = 0; i < samples.length; i++) {
-            const p = samples[i];
-            const pm = filled[i];
-            const intensity = (typeof pm === 'number') ? Math.min(1, pm / 150) : 0.01; // small fallback so point renders
-            points.push([p[0], p[1], intensity]);
-        }
-
-        // remove existing heat layer
-        if (heatLayer) try { map.removeLayer(heatLayer); } catch(e){}
-        // create heat layer (include small intensities so grid is visible)
-        heatLayer = L.heatLayer(points, { radius: 25, blur: 18, maxZoom: 12 }).addTo(map);
-        if (btn) { btn.classList.add('active'); btn.textContent = '🔥 Heat'; }
+    try {
+        if (map) return;
+        map = L.map('map', { preferCanvas: true }).setView([22.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        L.control.scale({ position: 'bottomleft' }).addTo(map);
     } catch (e) {
-        console.error('Heatmap error', e);
-        if (btn) { btn.textContent = 'Heat (error)'; }
-    } finally {
-        if (btn) setTimeout(() => { btn.classList.remove('loading'); if (btn.textContent.indexOf('Loading')===0) btn.textContent = '🔥 Heat'; }, 400);
+        console.error('initMap error', e);
     }
 }
 
 function toggleHeatmap() {
-    const btn = document.getElementById('heat-floating-btn');
-    if (heatLayer && map && map.hasLayer(heatLayer)) {
-        map.removeLayer(heatLayer);
-        if (btn) btn.classList.remove('active');
-        return;
-    }
-    // build heatmap and show
-    buildHeatmap();
-}
-
-// Compute exposure score for a route: weighted (pm2.5 + 0.1*no2) * distance
-async function computeRouteExposure(route) {
-    const coords = decodePolyline(route.geometry);
-    const sampled = samplePoints(coords, 8);
-    // fetch pollution for sampled points (limit concurrency). We either
-    // call the backend batch endpoint or fetch per-point directly from
-    // Open-Meteo depending on configuration.
-    let polls = [];
-    if (USE_BACKEND) {
-        try {
-            const points = sampled.map(p => ({ lat: p[0], lon: p[1] }));
-            const resp = await fetch('/api/exposure', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ points })
-            });
-            const json = await resp.json();
-            polls = (json.points || []).map(p => ({ pm2_5: p.pm2_5, no2: p.no2 }));
-        } catch (e) {
-            polls = await Promise.all(sampled.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
-        }
+    if (!map) return;
+    if (heatLayer) { try { map.removeLayer(heatLayer); heatLayer = null; } catch (e) {} }
+    else if (selectedRouteId !== null && routeLayers[selectedRouteId]) {
+        // try to build heatmap for currently selected route; safe no-op if missing
+        try { buildRouteHeatmap(routeLayers[selectedRouteId].meta.route); } catch (e) { console.warn('toggleHeatmap build failed', e); }
     } else {
-        polls = await Promise.all(sampled.map(p => fetchPollution(p[0], p[1]).catch(() => null)));
+        console.info('No heatmap data to show');
     }
-    // associate pollutants to segments between sampled points
-    let exposureSum = 0;
-    let distanceSum = 0;
-    for (let i = 0; i < sampled.length - 1; i++) {
-        const a = sampled[i];
-        const b = sampled[i+1];
-        const dist = haversineDistance(a, b); // meters
-        const p1 = polls[i] || { pm2_5: 0, no2: 0 };
-        const p2 = polls[i+1] || { pm2_5: 0, no2: 0 };
-        const avgPm = ((p1.pm2_5 || 0) + (p2.pm2_5 || 0)) / 2;
-        const avgNo2 = ((p1.no2 || 0) + (p2.no2 || 0)) / 2;
-        const pollutantScore = avgPm + 0.1 * (avgNo2 || 0);
-        exposureSum += pollutantScore * dist;
-        distanceSum += dist;
-    }
-    // fallback: if no segments (very short), use single point
-    if (distanceSum === 0 && sampled.length && polls.length) {
-        const p = polls[0] || { pm2_5: 0, no2: 0 };
-        return { exposure: (p.pm2_5 || 0) + 0.1*(p.no2||0), distance: 0 };
-    }
-    const exposurePerMeter = distanceSum > 0 ? (exposureSum / distanceSum) : Infinity;
-    return { exposure: exposurePerMeter, exposureSum, distance: distanceSum };
 }
 
-// Clear existing route layers
 function clearRoutes() {
-    for (const l of routeLayers) {
-        try { map.removeLayer(l.layer); } catch(e){}
-    }
-    routeLayers = [];
+    try {
+        routeLayers.forEach(r => { try { map.removeLayer(r.layer); } catch (e) {} });
+        routeLayers = [];
+        selectedRouteId = null;
+    } catch (e) { console.error('clearRoutes error', e); }
 }
 
-// Render routes (array of OSRM route objects) and add list entries
+// Decode a polyline encoded string. Default precision 1e5 matches OSRM `polyline`.
+// Use precision=1e6 for `polyline6` encoded geometries.
+function decodePolyline(str, precision = 1e5) {
+    const coords = [];
+    let index = 0, lat = 0, lng = 0;
+    while (index < str.length) {
+        let shift = 0, result = 0, byte = null;
+        do {
+            byte = str.charCodeAt(index++) - 63;
+            result |= (byte & 0x1f) << shift;
+            shift += 5;
+        } while (byte >= 0x20);
+        const deltaLat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lat += deltaLat;
+
+        shift = 0; result = 0;
+        do {
+            byte = str.charCodeAt(index++) - 63;
+            result |= (byte & 0x1f) << shift;
+            shift += 5;
+        } while (byte >= 0x20);
+        const deltaLng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lng += deltaLng;
+
+        coords.push([lat / precision, lng / precision]);
+    }
+    return coords;
+}
+
+// Sample points along a coordinate array at approximately every `step` points.
+function samplePoints(coords, step = 4) {
+    if (!coords || coords.length === 0) return [];
+    if (step <= 1) return coords.slice();
+    const out = [];
+    for (let i = 0; i < coords.length; i += step) out.push(coords[i]);
+    if (coords.length > 0 && out[out.length-1] !== coords[coords.length-1]) out.push(coords[coords.length-1]);
+    return out;
+}
+
+// Sample points by approximate distance interval (meters). Returns array of [lat,lon].
+function samplePointsByDistance(coords, intervalMeters = 300) {
+    if (!coords || coords.length < 2) return coords.slice();
+    const out = [];
+    let acc = 0;
+    out.push(coords[0]);
+    for (let i = 1; i < coords.length; i++) {
+        const prev = coords[i-1];
+        const cur = coords[i];
+        const d = haversine(prev[0], prev[1], cur[0], cur[1]);
+        acc += d;
+        if (acc >= intervalMeters) {
+            out.push(cur);
+            acc = 0;
+        }
+    }
+    if (out.length === 0 || (out[out.length-1][0] !== coords[coords.length-1][0] || out[out.length-1][1] !== coords[coords.length-1][1])) {
+        out.push(coords[coords.length-1]);
+    }
+    return out;
+}
+
+// Lightweight route fetcher using OSRM public API
+async function fetchRoutes(from, to) {
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?alternatives=true&overview=full&geometries=polyline`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('OSRM error');
+        const json = await res.json();
+        return json.routes || [];
+    } catch (e) {
+        console.error('fetchRoutes error', e);
+        return [];
+    }
+}
+
+
+// Placeholder exposure calculation: returns a simple score based on distance
+async function computeRouteExposure(route) {
+    try {
+        // route.distance is meters; normalize to an arbitrary exposure metric
+        const exposure = (route.distance || 0) / 1000.0; // km as proxy
+        return { exposure, distance: route.distance || 0 };
+    } catch (e) { return { exposure: Infinity, distance: 0 }; }
+}
+
+// Geocode using Nominatim (returns array of { display_name, lat, lon })
+async function geocode(q, limit = 6) {
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=${limit}`;
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+        if (!res.ok) return [];
+        const json = await res.json();
+        return (json || []).map(it => ({ display_name: it.display_name, lat: parseFloat(it.lat), lon: parseFloat(it.lon) }));
+    } catch (e) {
+        console.error('geocode error', e);
+        return [];
+    }
+}
+
+// ------------------------
+// AQI provider + caching
+// ------------------------
+// Grid rounding for cache keys: ~0.03° (~3 km). Tune within 0.02-0.05°.
+const AQI_CACHE_GRID = 0.03;
+const AQI_CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
+const AQI_ALPHA_NO2 = 0.1; // weight for NO2 in exposure metric
+const AQI_FETCH_TIMEOUT_MS = 5000;
+const aqiCache = new Map();
+
+function aqiCacheKey(lat, lon) {
+    const rlat = Math.round(lat / AQI_CACHE_GRID) * AQI_CACHE_GRID;
+    const rlon = Math.round(lon / AQI_CACHE_GRID) * AQI_CACHE_GRID;
+    return `${rlat.toFixed(5)}_${rlon.toFixed(5)}`;
+}
+
+async function fetchOpenMeteoAQ(lat, lon) {
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), AQI_FETCH_TIMEOUT_MS);
+    try {
+        const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,nitrogen_dioxide`;
+        const resp = await fetch(url, { signal: ac.signal });
+        if (!resp.ok) throw new Error('OpenMeteo response ' + resp.status);
+        const j = await resp.json();
+        // pick latest hourly values if present
+        const timeIndex = (j.hourly && j.hourly.time && j.hourly.time.length) ? j.hourly.time.length - 1 : null;
+        const pm = (timeIndex !== null && j.hourly.pm2_5 && j.hourly.pm2_5[timeIndex] != null) ? j.hourly.pm2_5[timeIndex] : null;
+        const no2 = (timeIndex !== null && j.hourly.nitrogen_dioxide && j.hourly.nitrogen_dioxide[timeIndex] != null) ? j.hourly.nitrogen_dioxide[timeIndex] : null;
+        clearTimeout(timeout);
+        if (pm == null && no2 == null) return null;
+        return { pm2_5: typeof pm === 'number' ? pm : null, no2: typeof no2 === 'number' ? no2 : null };
+    } catch (e) {
+        clearTimeout(timeout);
+        console.warn('fetchOpenMeteoAQ failed', e && e.message);
+        return null;
+    }
+}
+
+// Provider-agnostic AQI getter. Tries cache, then primary provider, then fallback.
+async function getAirQuality(lat, lon) {
+    const key = aqiCacheKey(lat, lon);
+    const now = Date.now();
+    const cached = aqiCache.get(key);
+    if (cached && (now - cached.ts) < AQI_CACHE_TTL_MS) return cached.val;
+
+    // primary provider: Open-Meteo
+    let val = await fetchOpenMeteoAQ(lat, lon);
+    // fallback: try CPCB stub (not implemented) — skip and return null for now
+    if (!val) {
+        // Do not assume zeros — return null to signal missing data
+        aqiCache.set(key, { val: null, ts: now });
+        return null;
+    }
+
+    aqiCache.set(key, { val, ts: now });
+    return val;
+}
+
+// ------------------------
+// Utilities
+// ------------------------
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // meters
+    const toRad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * toRad;
+    const dLon = (lon2 - lon1) * toRad;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1*toRad) * Math.cos(lat2*toRad) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function ensureNumber(v) { return (typeof v === 'number' && !isNaN(v)) ? v : null; }
+
+// ------------------------
+// Exposure calculation
+// ------------------------
+// Compute exposure for a route. Returns object { exposure, exposurePerHour, validSamples, totalSamples, confidence }
+async function computeRouteExposure(route) {
+    try {
+        if (!route || !route.geometry || !ensureNumber(route.distance) || !ensureNumber(route.duration)) {
+            return { exposure: null, exposurePerHour: null, validSamples: 0, totalSamples: 0, confidence: 'low' };
+        }
+
+        const coords = decodePolyline(route.geometry); // [[lat,lon], ...]
+        if (!coords || coords.length < 2) return { exposure: null, exposurePerHour: null, validSamples: 0, totalSamples: 0, confidence: 'low' };
+
+        // choose sampling interval by route length (meters)
+        const totalDist = route.distance; // meters
+        const interval = (totalDist > 20000) ? 25000 : 300; // inter-city vs city
+
+        const sampled = samplePointsByDistance(coords, interval);
+        const totalSamples = sampled.length;
+
+        // build per-segment distances between sampled points
+        const segDists = [];
+        for (let i = 1; i < sampled.length; i++) {
+            segDists.push(haversine(sampled[i-1][0], sampled[i-1][1], sampled[i][0], sampled[i][1]));
+        }
+        // if no segments (single point), fallback to tiny sample
+        if (segDists.length === 0) return { exposure: null, exposurePerHour: null, validSamples: 0, totalSamples, confidence: 'low' };
+
+        // compute time per meter factor
+        const timePerMeter = route.duration / Math.max(1, totalDist);
+
+        let cumulativeExposure = 0;
+        let validSamples = 0;
+
+        // Build midpoints list for segments
+        const midpoints = [];
+        for (let i = 0; i < segDists.length; i++) {
+            const a = sampled[i];
+            const b = sampled[i+1];
+            const midLat = (a[0] + b[0]) / 2.0;
+            const midLon = (a[1] + b[1]) / 2.0;
+            midpoints.push({ lat: midLat, lon: midLon });
+        }
+
+        // Fetch pollutant values in batch when backend helper is enabled to reduce many small requests.
+        let polls = [];
+        if (USE_BACKEND) {
+            try {
+                const resp = await fetch('/api/exposure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: midpoints }) });
+                if (resp.ok) {
+                    const json = await resp.json();
+                    polls = (json.points || []).map(p => ({ pm2_5: p.pm2_5, no2: p.no2 }));
+                } else {
+                    polls = await Promise.all(midpoints.map(m => getAirQuality(m.lat, m.lon).catch(() => null)));
+                }
+            } catch (e) {
+                console.warn('Backend exposure batch failed', e && e.message);
+                polls = await Promise.all(midpoints.map(m => getAirQuality(m.lat, m.lon).catch(() => null)));
+            }
+        } else {
+            // client-side fetching (uses cache and provider-agnostic getter)
+            polls = await Promise.all(midpoints.map(m => getAirQuality(m.lat, m.lon).catch(() => null)));
+        }
+
+        // aggregate exposures from polls
+        for (let i = 0; i < segDists.length; i++) {
+            const aq = polls[i];
+            if (!aq || (aq.pm2_5 == null && aq.no2 == null)) continue;
+            const pm = ensureNumber(aq.pm2_5) || 0;
+            const no2 = ensureNumber(aq.no2) || 0;
+            const conc = pm + AQI_ALPHA_NO2 * no2;
+            const segTime = segDists[i] * timePerMeter; // seconds
+            cumulativeExposure += conc * segTime;
+            validSamples++;
+        }
+
+        if (validSamples === 0) {
+            return { exposure: null, exposurePerHour: null, validSamples, totalSamples, confidence: 'low' };
+        }
+
+        // exposure per hour (normalize by time)
+        const exposurePerSecond = cumulativeExposure / Math.max(1, route.duration);
+        const exposurePerHour = exposurePerSecond * 3600;
+        // return raw cumulative and per-hour metric
+        const confidence = (validSamples < 3) ? 'low' : 'high';
+        return { exposure: cumulativeExposure, exposurePerHour, validSamples, totalSamples, confidence };
+    } catch (e) {
+        console.error('computeRouteExposure error', e && e.message);
+        return { exposure: null, exposurePerHour: null, validSamples: 0, totalSamples: 0, confidence: 'low' };
+    }
+}
+// Build a focused heatmap along a single route (called when a route is selected).
+// This avoids broad map sampling and reduces API usage. The function samples
+// the decoded route polyline, fetches pollutant values for points, and renders
+// a heat layer along the route only.
+async function buildRouteHeatmap(route) {
+    if (!map || !route) return;
+    if (heatLayer) try { map.removeLayer(heatLayer); } catch (e) {}
+    try {
+        const coords = decodePolyline(route.geometry);
+        const sampled = samplePoints(coords, 4);
+        let polls = [];
+        if (USE_BACKEND) {
+            try {
+                const points = sampled.map(p => ({ lat: p[0], lon: p[1] }));
+                const resp = await fetch('/api/exposure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points }) });
+                const json = await resp.json();
+                polls = (json.points || []).map(p => ({ pm2_5: p.pm2_5, no2: p.no2 }));
+                } catch (e) {
+                        polls = await Promise.all(sampled.map(p => getAirQuality(p[0], p[1]).catch(() => null)));
+                    }
+        } else {
+                polls = await Promise.all(sampled.map(p => getAirQuality(p[0], p[1]).catch(() => null)));
+        }
+        const points = sampled.map((p, i) => {
+            const pm = (polls[i] && typeof polls[i].pm2_5 === 'number') ? polls[i].pm2_5 : null;
+            const intensity = (typeof pm === 'number') ? Math.min(1, Math.sqrt(pm / 150)) : 0.05;
+            return [p[0], p[1], intensity];
+        });
+        const zoom = map.getZoom() || 12;
+        const radius = Math.max(6, Math.round(24 - zoom * 0.5));
+        heatLayer = L.heatLayer(points, { radius, blur: Math.round(radius * 0.8), max: 1, gradient: {0.0: 'blue', 0.25: 'cyan', 0.5: 'lime', 0.75: 'orange', 1.0: 'red'} }).addTo(map);
+    } catch (e) { console.error('Route heatmap error', e); }
+}
+
 async function renderAndScoreRoutes(osmRoutes) {
     clearRoutes();
     const routeListEl = document.getElementById('route-list');
     routeListEl.innerHTML = '';
 
-    // compute exposures in parallel (but limited by browser). For simplicity use Promise.all.
+    // Add short disclaimer about exposure values
+    const disc = document.createElement('div');
+    disc.className = 'text-xs text-gray-400 mb-2';
+    disc.textContent = 'Exposure values are relative estimates for comparison (not medical advice).';
+    routeListEl.appendChild(disc);
+
     const scored = await Promise.all(osmRoutes.map(async (r, idx) => {
-        const score = await computeRouteExposure(r).catch(() => ({ exposure: Infinity, distance: 0 }));
+        const score = await computeRouteExposure(r).catch(() => ({ exposure: null, exposurePerHour: null, validSamples: 0, totalSamples: 0, confidence: 'low' }));
         return { route: r, idx, ...score };
     }));
 
-    // Determine healthiest and fastest
-    const healthiest = scored.reduce((a,b) => (b.exposure < a.exposure ? b : a), scored[0] || null);
+    // Determine healthiest (min exposurePerHour among valid) and fastest (min duration)
+    const validExposures = scored.filter(s => s.exposurePerHour != null).map(s => s.exposurePerHour);
+    let minExposure = validExposures.length ? Math.min(...validExposures) : null;
+    if (minExposure === 0) minExposure = 1e-6; // avoid division by zero
+    const healthiest = (minExposure != null) ? scored.filter(s => s.exposurePerHour === minExposure)[0] || scored.reduce((a,b) => ( (a.exposurePerHour||Infinity) < (b.exposurePerHour||Infinity) ? a : b ), scored[0]) : null;
     const fastest = scored.reduce((a,b) => (b.route.duration < a.route.duration ? b : a), scored[0] || null);
 
+    // compute relative differences and render
     scored.forEach((s) => {
         const coords = decodePolyline(s.route.geometry).map(p => [p[0], p[1]]);
-        const color = (s === healthiest) ? '#34C759' : (s === fastest ? '#007AFF' : '#777');
-        const weight = (s === healthiest || s === fastest) ? 5 : 3;
+        const isHealthiest = (s === healthiest);
+        const isFastest = (s === fastest);
+        const color = isHealthiest ? '#34C759' : (isFastest ? '#007AFF' : '#777');
+        const weight = (isHealthiest || isFastest) ? 5 : 3;
         const layer = L.polyline(coords, { color, weight, opacity: 0.9 }).addTo(map);
         const bounds = layer.getBounds();
+
+        // relative exposure
+        let relText = 'Exposure: unavailable';
+        if (s.exposurePerHour != null && minExposure != null) {
+            const pct = Math.round(((s.exposurePerHour - minExposure) / minExposure) * 100);
+            if (isHealthiest) relText = 'Healthiest (reference)';
+            else relText = `${Math.abs(pct)}% higher exposure vs healthiest`;
+        }
+
+        const confidenceText = (s.confidence === 'low') ? ' • estimated / low confidence' : '';
 
         const item = document.createElement('div');
         item.className = 'route-item p-3 rounded-md bg-white/3 cursor-pointer';
         item.style.borderLeft = `4px solid ${color}`;
         const durMin = Math.round(s.route.duration / 60);
         const distKm = (s.route.distance/1000).toFixed(1);
-        const exposureVal = isFinite(s.exposure) ? s.exposure.toFixed(2) : '—';
-        item.innerHTML = `<div class="text-sm font-medium">Route ${s.idx+1}</div>
-                          <div class="text-xs text-gray-300">${durMin} min • ${distKm} km • exposure ${exposureVal}</div>`;
+        item.innerHTML = `<div class="text-sm font-medium">Route ${s.idx+1} ${isHealthiest?'<span class="text-xs bg-green-600/20 ml-2 px-2 py-0.5 rounded">Healthiest</span>':''} ${isFastest?'<span class="text-xs bg-blue-600/20 ml-2 px-2 py-0.5 rounded">Fastest</span>':''}</div>
+                          <div class="text-xs text-gray-300">${durMin} min • ${distKm} km • ${relText}${confidenceText}</div>`;
+
         item.onclick = () => {
-            // highlight selected
             selectedRouteId = s.idx;
             routeLayers.forEach(rly => rly.layer.setStyle({ opacity: 0.6 }));
             layer.setStyle({ opacity: 1.0, weight: 6 });
             map.fitBounds(bounds.pad(0.15));
+            // Build focused heatmap for this route only
+            buildRouteHeatmap(s.route);
         };
 
         routeListEl.appendChild(item);
@@ -322,6 +413,8 @@ async function renderAndScoreRoutes(osmRoutes) {
             selectedRouteId = toSelect;
             entry.layer.setStyle({ weight: 6, opacity: 1.0 });
             map.fitBounds(entry.layer.getBounds().pad(0.15));
+            // build heatmap for the auto-selected route
+            buildRouteHeatmap(entry.meta.route);
         }
     }
 }
@@ -411,14 +504,14 @@ function initPanelLogic() {
             }
         });
     });
+
+    // initialize autocomplete after panel elements are wired
+    try { initAutocomplete(); } catch (e) { console.warn('initAutocomplete failed', e); }
 }
 
 window.onload = () => {
     initMap();
     initPanelLogic();
-    // heat map toggle wiring
-    const heatBtn = document.getElementById('heat-floating-btn');
-    if (heatBtn) heatBtn.onclick = toggleHeatmap;
 };
 
 // --- Autocomplete with inline typeahead ---
@@ -457,6 +550,8 @@ function createAutocomplete(inputEl) {
                     el.className = 'autocomplete-item';
                     el.tabIndex = 0;
                     el.textContent = it.display_name;
+                    // pointerdown ensures selection before blur; onclick preserved for compatibility
+                    el.addEventListener('pointerdown', (e) => { e.preventDefault(); select(idx); });
                     el.onclick = () => select(idx);
                     el.onkeydown = (ev) => { if (ev.key === 'Enter') select(idx); };
                     list.appendChild(el);
@@ -528,5 +623,4 @@ function initAutocomplete() {
     createAutocomplete(document.getElementById('end-input'));
 }
 
-// ensure initAutocomplete runs when page loads
-window.addEventListener('load', () => { try { initAutocomplete(); } catch(e){} });
+// initAutocomplete is invoked from initPanelLogic()
