@@ -25,7 +25,7 @@
             }
         }
     </script>
-  <link rel="stylesheet" crossorigin href="/assets/index-iqVx6tu0.css">
+  <link rel="stylesheet" crossorigin href="/assets/index-B_gNhtHR.css">
 </head>
 
 <body class="bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
@@ -121,30 +121,37 @@
         <div class="max-w-6xl mx-auto">
             <div class="glass-panel rounded-3xl overflow-hidden min-h-[80vh] flex flex-col md:flex-row shadow-2xl relative">
                 <div class="w-full md:w-96 bg-black/40 backdrop-blur-xl p-8 border-r border-white/10 flex flex-col z-20">
-                    <h2 class="text-2xl font-bold mb-8 tracking-tight">AQI Data Pune 2024</h2>
-                    <div id="calendar-container" class="space-y-4">
-                        <label for="calendar-date" class="text-sm text-gray-400">Select date (2024)</label>
-                        <input id="calendar-date" type="date" min="2024-01-01" max="2024-12-31" class="w-full input-apple px-4 py-3 text-sm" />
-                        <p id="calendar-note" class="text-xs text-gray-500">Pick a date to view AQI values (Wakad data available from CSV).</p>
-                    </div>
-                    <div class="mt-8">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-lg font-semibold">Stations</h3>
-                            <div class="flex gap-2">
-                                <button id="station-scroll-up" class="station-scroll-btn text-xs bg-white/10 px-3 py-1 rounded">▲</button>
-                                <button id="station-scroll-down" class="station-scroll-btn text-xs bg-white/10 px-3 py-1 rounded">▼</button>
+                    <h2 class="text-2xl font-bold mb-6 tracking-tight">Route Planner</h2>
+                    <div class="space-y-4">
+                        <label class="text-sm text-gray-400">Start</label>
+                        <input id="start-input" type="text" placeholder="Start location or address" class="w-full input-apple px-4 py-3 text-sm" />
+
+                        <label class="text-sm text-gray-400">Destination</label>
+                        <input id="end-input" type="text" placeholder="Destination location or address" class="w-full input-apple px-4 py-3 text-sm" />
+
+                        <div class="flex items-center gap-3">
+                            <label class="text-sm text-gray-400">Preference</label>
+                            <div class="flex items-center gap-2 ml-2">
+                                <button id="pref-fastest" class="pref-btn text-xs bg-white/6 px-3 py-1 rounded-full active">Fastest</button>
+                                <button id="pref-healthiest" class="pref-btn text-xs bg-white/6 px-3 py-1 rounded-full">Healthiest</button>
                             </div>
                         </div>
-                        <div class="flex gap-2 mb-4">
-                            <button id="filter-all" class="text-xs bg-white/10 px-3 py-2 rounded-full">All</button>
-                            <button id="filter-pune" class="text-xs bg-white/10 px-3 py-2 rounded-full">Pune</button>
-                            <button id="filter-pcmc" class="text-xs bg-white/10 px-3 py-2 rounded-full">PCMC</button>
+
+                        <div class="flex gap-2">
+                            <button id="find-routes" class="btn-apple px-4 py-2">Find Routes</button>
+                            <button id="geolocate-btn" class="text-xs bg-white/6 px-3 py-2 rounded-full">Use my location</button>
                         </div>
-                        <div id="map-station-list" class="space-y-3 max-h-64 overflow-y-auto pr-2" tabindex="0" aria-label="Station list"></div>
+                    </div>
+
+                    <div class="mt-6">
+                        <h3 class="text-sm text-gray-400 mb-2">Routes</h3>
+                        <div id="route-list" class="space-y-3 max-h-64 overflow-y-auto pr-2" tabindex="0" aria-label="Route list"></div>
                     </div>
                 </div>
                 <div class="flex-1 relative bg-[#1c1c1e] z-10">
-                    <div id="map" class="w-full h-full"></div>
+                    <div id="map" class="w-full h-full">
+                        <button id="heat-floating-btn" class="heat-float-btn" title="Toggle Heatmap">🔥 Heat</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -153,6 +160,7 @@
     <!-- Sidebar removed — stations will appear in the map panel below -->
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="script.js"></script> 
 </body>
 </html>
