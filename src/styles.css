@@ -1,0 +1,265 @@
+/* Base Setup */
+:root {
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(28, 28, 30, 0.65);
+    --primary-blue: #007AFF;
+    --success-green: #34C759;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    background-color: #000000;
+    color: #F5F5F7;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Custom Scrollbar - Minimal */
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1), background-color 0.2s ease;
+}
+
+.glass-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: scale(1.02);
+}
+
+/* Typography Utilities */
+.text-hero {
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+
+.text-subtle {
+    color: #86868b;
+}
+
+/* Button Utilities */
+.btn-apple {
+    background-color: var(--primary-blue);
+    color: white;
+    border-radius: 9999px;
+    padding: 12px 24px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-apple:hover {
+    background-color: #0062cc;
+    transform: scale(1.02);
+}
+
+.btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Input Styling */
+.input-apple {
+    background: rgba(28, 28, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: white;
+    transition: border-color 0.2s ease;
+}
+
+.input-apple:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+}
+
+/* Leaflet Map Dark Mode & Overrides */
+#map {
+    z-index: 1; /* Keep map below navigation and sidebars */
+}
+
+/* Leaflet tiles: avoid heavy filters so map tiles remain visible */
+.leaflet-tile-pane {
+    filter: none;
+}
+
+.leaflet-container {
+    background: #1c1c1e !important;
+}
+
+/* Sidebar & Overlay (Fixed Clickability & Layers) */
+.side-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-width: 450px;
+    height: 100%;
+    background: rgba(10, 10, 10, 0.95); /* Darker for better contrast */
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+    transform: translateX(100%);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 4000 !important; /* Top layer */
+    padding: 2rem;
+    overflow-y: auto;
+    box-sizing: border-box;
+    pointer-events: auto; /* Critical fix */
+}
+
+.side-panel.open {
+    transform: translateX(0);
+}
+
+.overlay-dim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: none;
+    z-index: 3500; /* Below sidebar, above map */
+}
+
+.overlay-dim.active {
+    display: block;
+}
+
+/* Station Card Styling within Sidebar */
+.station-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    cursor: pointer !important;
+    pointer-events: auto !important; /* Critical fix for clicking */
+}
+
+.station-card:hover {
+    border-color: var(--primary-blue);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Improved station list scrollbar and scroll buttons */
+#map-station-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+#map-station-list::-webkit-scrollbar { width: 8px; }
+#map-station-list::-webkit-scrollbar-track { background: transparent; }
+#map-station-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+
+.station-scroll-btn {
+    background: rgba(255,255,255,0.04);
+    color: #fff;
+    border: 1px solid var(--glass-border);
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+.station-scroll-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* Tabs Styles */
+.segmented-control {
+    background: rgba(118, 118, 128, 0.24);
+    border-radius: 9px;
+    padding: 2px;
+    display: inline-flex;
+}
+
+.tab-btn {
+    padding: 6px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    color: #000;
+    background: #fff;
+}
+
+/* Floating Heatmap Toggle */
+.heat-float-btn {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 6500;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    font-weight: 600;
+    backdrop-filter: blur(6px);
+}
+.heat-float-btn.active {
+    background: var(--primary-blue);
+    color: #000;
+    border-color: rgba(0,0,0,0.2);
+}
+
+/* side-tab removed */
+
+/* Autocomplete dropdown for geocode inputs */
+.autocomplete-list {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 8px);
+    width: 100%;
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(10,10,10,0.96);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 6000; /* above map but below global nav */
+    padding: 6px 6px;
+    box-sizing: border-box;
+}
+.autocomplete-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #e6e6e9;
+    font-size: 13px;
+    cursor: pointer;
+}
+.autocomplete-item + .autocomplete-item { margin-top: 6px; }
+.autocomplete-item.loading,
+.autocomplete-item.empty,
+.autocomplete-item.error { color: #9aa0a6; font-style: italic; }
+.autocomplete-item.active,
+.autocomplete-item:hover { background: rgba(255,255,255,0.04); }
