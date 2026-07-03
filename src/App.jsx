@@ -27,6 +27,10 @@ function App() {
       const mapEl = document.getElementById('map')
       if (!mapEl || mapEl._leaflet_map) return
       
+      // Ensure map container has explicit height for Vercel deployment
+      mapEl.style.height = '100%'
+      mapEl.style.minHeight = '600px'
+      
       const map = L.map('map', { preferCanvas: true }).setView([22.5937, 78.9629], 5)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,

@@ -102,6 +102,9 @@ body {
 /* Leaflet Map Dark Mode & Overrides */
 #map {
     z-index: 1; /* Keep map below navigation and sidebars */
+    height: 100% !important;
+    min-height: 600px;
+    width: 100%;
 }
 
 /* Leaflet tiles: avoid heavy filters so map tiles remain visible */
