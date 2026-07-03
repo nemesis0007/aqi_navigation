@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import './styles.css'
 
+const API_URL = import.meta.env.VITE_API_URL
+
 function App() {
   const [startInput, setStartInput] = useState('')
   const [endInput, setEndInput] = useState('')
@@ -142,11 +144,6 @@ function App() {
   // Fetch AQI data from backend
   const fetchAQIForRoutes = async (routeList) => {
     try {
-      // Detect API URL based on environment
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000/api/exposure'
-        : `https://${window.location.hostname.replace('5173', '5000')}/api/exposure`
-
       const routesWithAQI = await Promise.all(routeList.map(async (route) => {
         const sampledPoints = samplePointsFromCoordinates(route.coordinates)
         const points = sampledPoints.map(coord => ({
@@ -154,7 +151,7 @@ function App() {
           lon: coord[1]
         }))
 
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${API_URL}/api/exposure`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ points })
